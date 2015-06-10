@@ -1,7 +1,3 @@
-import urllib
-import hashlib
-
-from django.conf import settings
 from django.contrib import admin
 
 from jinja2 import escape, Markup, contextfunction
@@ -15,23 +11,15 @@ from tower import ugettext as _
 from kuma.core.urlresolvers import reverse
 from kuma.core.helpers import datetimeformat
 
-DEFAULT_AVATAR = getattr(settings, 'DEFAULT_AVATAR',
-                         settings.MEDIA_URL + 'img/avatar-default.png')
+from .jobs import UserGravatarURLJob, DEFAULT_AVATAR
 
 
 @register.function
 def gravatar_url(user, secure=True, size=220, rating='pg',
                  default=DEFAULT_AVATAR):
-    """Produce a gravatar image URL from email address."""
-    base_url = (secure and 'https://secure.gravatar.com' or
-                'http://www.gravatar.com')
-    email_hash = hashlib.md5(user.email.lower().encode('utf8'))
-    params = urllib.urlencode({'s': size, 'd': default, 'r': rating})
-    return '%(base_url)s/avatar/%(hash)s?%(params)s' % {
-        'base_url': base_url,
-        'hash': email_hash.hexdigest(),
-        'params': params,
-    }
+    job = UserGravatarURLJob()
+    return job.get(user.email, secure=secure, size=size,
+                   rating=rating, default=default)
 
 
 @register.function
